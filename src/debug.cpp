@@ -71,7 +71,7 @@ int debug_sprite_mask = 0xff;
 int debug_illegal = 0;
 uae_u64 debug_illegal_mask;
 int debug_logging = 0;
-int debug_logging_full = 0;
+int enhanced_memwatch_outputs = 0;
 static int debug_mmu_mode;
 static bool break_if_enforcer;
 
@@ -2515,7 +2515,7 @@ static uae_u32 memwatch_watched_value (uaecptr waddr, int wsize, uaecptr aaddr, 
 static void memwatch_hit_msg (int mw)
 {
 	int i, l;
-	TCHAR buf[300];
+	TCHAR buf[400];
 	int wsize = mwhit.watch_size;
 	uae_u32 wval;
 
@@ -2525,16 +2525,21 @@ static void memwatch_hit_msg (int mw)
 		wsize = 4;
 	wval = memwatch_watched_value (mwhit.watch_addr, wsize, mwhit.addr, mwhit.size, mwhit.val);
 
-	l = _stprintf (buf, _T("Memwatch %02d: %08X.%c %c%c%c %08X PC=%08X"),
-		mw, mwhit.watch_addr,
-		wsize == 1 ? 'B' : (wsize == 2 ? 'W' : 'L'),
-		(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
-		wval, mwhit.pc);
-	if (debug_logging_full) {
-		l += _stprintf (buf + l, _T(" [access %08X.%c %08X]"),
-			mwhit.addr,
-			mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
-			mwhit.val);
+	l = 0;
+	if (enhanced_memwatch_outputs) {
+		/* frame counter and zero padded value */
+		l += _stprintf (buf + l, _T("%08lu "), (unsigned long)vsync_counter);
+		l += _stprintf (buf + l, _T("Memwatch %02d: %08X.%c %c%c%c %08X PC=%08X"),
+			mw, mwhit.watch_addr,
+			wsize == 1 ? 'B' : (wsize == 2 ? 'W' : 'L'),
+			(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
+			wval, mwhit.pc);
+	} else {
+		l += _stprintf (buf + l, _T("Memwatch %d: %08X.%c %c%c%c %0*X PC=%08X"),
+			mw, mwhit.watch_addr,
+			wsize == 1 ? 'B' : (wsize == 2 ? 'W' : 'L'),
+			(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
+			wsize * 2, wval, mwhit.pc);
 	}
 	for (i = 0; memwatch_access_masks[i].mask; i++) {
 		if (mwhit.access_mask == memwatch_access_masks[i].mask)

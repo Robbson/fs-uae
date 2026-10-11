@@ -941,12 +941,18 @@ extern int g_fsdb_debug;
 extern int g_random_debug_logging;
 extern int inputdevice_logging;
 extern int debug_logging;
-extern int debug_logging_full;
+extern int enhanced_memwatch_outputs;
 
 static void configure_logging(const char *logstr)
 {
     if (fs_config_get_int(OPTION_LOG_BSDSOCKET) == 1) {
         log_bsd = 1;
+    }
+    if (fs_config_get_int(OPTION_DEBUG_LOG) == 1) {
+        debug_logging = 1;
+    }
+    if (fs_config_get_int(OPTION_ENHANCED_MEMWATCH_OUTPUTS) == 1) {
+        enhanced_memwatch_outputs = 1;
     }
 
     if (!logstr) {
@@ -970,13 +976,6 @@ static void configure_logging(const char *logstr)
     }
     if (uae_all || strstr(logstr, "uae_frame")) {
         g_frame_debug_logging = 1;
-    }
-    if (uae_all || strstr(logstr, "uae_debug")) {
-        debug_logging = 1;
-    }
-    if (strstr(logstr, "uae_debug_full")) {
-        debug_logging = 1;
-        debug_logging_full = 1;
     }
 }
 
