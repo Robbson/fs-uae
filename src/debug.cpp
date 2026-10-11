@@ -153,7 +153,8 @@ static TCHAR help[] = {
 	_T("  W <address> <values[.x] separated by space> Write into Amiga memory.\n")
 	_T("  W <address> 'string' Write into Amiga memory.\n")
 	_T("  w <num> <address> <length> <R/W/I/F/C/L/N> [<value>[.x]]\n")
-	_T("                        (read/write/opcode/freeze/mustchange/logonly/nobreak).\n")
+	_T("                        Flags: R=read W=write I=opcode F=freeze\n")
+	_T("                        C=mustchange L=logonly N=nobreak (may be space-separated).\n")
 	_T("                        Add/remove memory watchpoints.\n")
 	_T("  wd [<0-1>]            Enable illegal access logger. 1 = enable break.\n")
 	_T("  S <file> <addr> <n>   Save a block of Amiga memory.\n")
@@ -3247,18 +3248,38 @@ static void memwatch (TCHAR **c)
 				}
 				ignore_ws (c);
 			}
-			if (more_params (c)) {
-				if (_totupper (**c) == 'M') {
+			for (;;) {
+				ignore_ws (c);
+				if (!more_params (c))
+					break;
+				if (!_tcsnicmp (*c, _T("MUSTCHANGE"), 10)) {
+					mwn->mustchange = 1;
+					*c += 10;
+				} else if (!_tcsnicmp (*c, _T("LOGONLY"), 7)) {
+					mwn->reportonly = 1;
+					*c += 7;
+				} else if (!_tcsnicmp (*c, _T("NOBREAK"), 7)) {
+					mwn->nobreak = 1;
+					*c += 7;
+				} else if (!_tcsnicmp (*c, _T("FREEZE"), 6)) {
+					mwn->frozen = 1;
+					*c += 6;
+				} else if (_totupper (**c) == 'M') {
 					mwn->modval_written = 1;
+					(*c)++;
 				} else if (_totupper (**c) == 'C') {
 					mwn->mustchange = 1;
+					(*c)++;
 				} else if (_totupper (**c) == 'L') {
 					mwn->reportonly = 1;
+					(*c)++;
 				} else if (_totupper (**c) == 'N') {
 					mwn->nobreak = 1;
+					(*c)++;
 				} else {
 					mwn->val = readhex (c, &mwn->val_size);
 					mwn->val_enabled = 1;
+					break;
 				}
 			}
 		}
