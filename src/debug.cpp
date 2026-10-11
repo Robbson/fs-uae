@@ -2516,18 +2516,19 @@ static void memwatch_hit_msg (int mw)
 {
 	int i, l;
 	TCHAR buf[400];
-	int wsize = mwhit.watch_size;
-	uae_u32 wval;
-
-	if (wsize <= 0)
-		wsize = mwhit.size;
-	if (wsize > 4)
-		wsize = 4;
-	wval = memwatch_watched_value (mwhit.watch_addr, wsize, mwhit.addr, mwhit.size, mwhit.val);
 
 	l = 0;
 	if (enhanced_memwatch_outputs) {
-		/* frame counter and zero padded value */
+		int wsize = mwhit.watch_size;
+		uae_u32 wval;
+
+		if (wsize <= 0)
+			wsize = mwhit.size;
+		if (wsize > 4)
+			wsize = 4;
+		wval = memwatch_watched_value (mwhit.watch_addr, wsize, mwhit.addr, mwhit.size, mwhit.val);
+
+		/* frame counter, watched value, zero padded */
 		l += _stprintf (buf + l, _T("%08lu "), (unsigned long)vsync_counter);
 		l += _stprintf (buf + l, _T("Memwatch %02d: %08X.%c %c%c%c %08X PC=%08X"),
 			mw, mwhit.watch_addr,
@@ -2535,11 +2536,12 @@ static void memwatch_hit_msg (int mw)
 			(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
 			wval, mwhit.pc);
 	} else {
-		l += _stprintf (buf + l, _T("Memwatch %d: %08X.%c %c%c%c %0*X PC=%08X"),
-			mw, mwhit.watch_addr,
-			wsize == 1 ? 'B' : (wsize == 2 ? 'W' : 'L'),
+		/* original output (same as upstream WinUAE): raw CPU access */
+		l += _stprintf (buf + l, _T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X"),
+			mw, mwhit.addr,
+			mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
 			(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
-			wsize * 2, wval, mwhit.pc);
+			mwhit.val, mwhit.pc);
 	}
 	for (i = 0; memwatch_access_masks[i].mask; i++) {
 		if (mwhit.access_mask == memwatch_access_masks[i].mask)
