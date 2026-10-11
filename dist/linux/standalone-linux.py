@@ -83,8 +83,9 @@ def fix_binary(path):
 
 def ignore_library(name):
     if name.startswith("libgpg-error.so"):
-        raise Exception(
-            "Bundling libgpg-error (libgcrypt?) breaks Intel GL driver")
+        # Bundling libgpg-error (pulled in via libgcrypt/libsystemd) breaks the
+        # Intel GL driver, so leave it to the host system instead of aborting.
+        return True
 
     if name.startswith("linux-gate.so"):
         return True

@@ -100,6 +100,7 @@ s("cp -a ../../share/locale/* FS-UAE/Locale")
 
 s("cp -a ../../licenses FS-UAE/Licenses")
 s("cp -a ../../README FS-UAE/ReadMe.txt")
+s("cp -a ../../README.md FS-UAE/ReadMe.md")
 s("./standalone-linux.py --strip --rpath='$ORIGIN' {package_dir}")
 s("find {package_dir} -name '*.standalone' -delete")
 s("echo {version} > FS-UAE/Version.txt")

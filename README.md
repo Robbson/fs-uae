@@ -2,7 +2,7 @@
 
 This repository is a fork of [FS-UAE](http://fs-uae.net/), based on the
 `fs-uae-3` branch (FS-UAE 3.2.35) — the last stable, released version of the
-emulator.
+emulator. The fork keeps the 3.x version scheme; its releases start at 3.3.0.
 
 ## Why this fork?
 
