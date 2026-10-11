@@ -71,6 +71,7 @@ int debug_sprite_mask = 0xff;
 int debug_illegal = 0;
 uae_u64 debug_illegal_mask;
 int debug_logging = 0;
+int debug_logging_full = 0;
 static int debug_mmu_mode;
 static bool break_if_enforcer;
 
@@ -2170,7 +2171,19 @@ struct breakpoint_node bpnodes[BREAKPOINT_TOTAL];
 static addrbank **debug_mem_banks;
 static addrbank *debug_mem_area;
 struct memwatch_node mwnodes[MEMWATCH_TOTAL];
-static struct memwatch_node mwhit;
+
+struct memwatch_hit {
+	uaecptr addr;       /* address of the CPU access */
+	int rwi;            /* access type (1=read, 2=write, 4=instruction) */
+	int size;           /* size of the CPU access (1/2/4) */
+	uaecptr watch_addr; /* address of the watchpoint that matched */
+	int watch_size;     /* size of the watchpoint that matched */
+	uae_u32 val;        /* raw value of the CPU access */
+	uae_u32 access_mask;
+	uae_u32 reg;
+	uaecptr pc;
+};
+static struct memwatch_hit mwhit;
 
 static uae_u8 *illgdebug, *illghdebug;
 static int illgdebug_break;
@@ -2484,21 +2497,50 @@ void restore_debug_memwatch_finish (void)
 	}
 }
 
+/* Extract the value of the watched range from a (possibly wider) CPU access. */
+static uae_u32 memwatch_watched_value (uaecptr waddr, int wsize, uaecptr aaddr, int asize, uae_u32 aval)
+{
+	uae_u32 v = 0;
+	for (int i = 0; i < wsize; i++) {
+		uaecptr a = waddr + i;
+		if (a >= aaddr && a < aaddr + asize) {
+			int shift = 8 * (int)(aaddr + asize - 1 - a);
+			uae_u32 byte = (aval >> shift) & 0xff;
+			v |= byte << (8 * (wsize - 1 - i));
+		}
+	}
+	return v;
+}
+
 static void memwatch_hit_msg (int mw)
 {
 	int i, l;
 	TCHAR buf[300];
+	int wsize = mwhit.watch_size;
+	uae_u32 wval;
 
-	l = _stprintf (buf, _T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X "), mw, mwhit.addr,
-		mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
+	if (wsize <= 0)
+		wsize = mwhit.size;
+	if (wsize > 4)
+		wsize = 4;
+	wval = memwatch_watched_value (mwhit.watch_addr, wsize, mwhit.addr, mwhit.size, mwhit.val);
+
+	l = _stprintf (buf, _T("Memwatch %02d: %08X.%c %c%c%c %08X PC=%08X"),
+		mw, mwhit.watch_addr,
+		wsize == 1 ? 'B' : (wsize == 2 ? 'W' : 'L'),
 		(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
-		mwhit.val, mwhit.pc);
+		wval, mwhit.pc);
+	if (debug_logging_full) {
+		l += _stprintf (buf + l, _T(" [access %08X.%c %08X]"),
+			mwhit.addr,
+			mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
+			mwhit.val);
+	}
 	for (i = 0; memwatch_access_masks[i].mask; i++) {
 		if (mwhit.access_mask == memwatch_access_masks[i].mask)
-			l += _stprintf (buf + l, _T("%s (%03x)\n"), memwatch_access_masks[i].name, mwhit.reg);
+			l += _stprintf (buf + l, _T(" %s (%03x)"), memwatch_access_masks[i].name, mwhit.reg);
 	}
-	if (l == 0 || buf[l - 1] != '\n')
-		l += _stprintf (buf + l, _T("\n"));
+	l += _stprintf (buf + l, _T("\n"));
 	console_out (buf);
 	if (debug_logging)
 		write_log (_T("%s"), buf);
@@ -2641,11 +2683,11 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 		mwhit.addr = addr;
 		mwhit.rwi = rwi;
 		mwhit.size = size;
-		mwhit.val = 0;
+		mwhit.watch_addr = m->addr;
+		mwhit.watch_size = m->size;
+		mwhit.val = val;
 		mwhit.access_mask = accessmask;
 		mwhit.reg = reg;
-		if (mwhit.rwi & 2)
-			mwhit.val = val;
 		if (m->reportonly) {
 			memwatch_hit_msg (i);
 		}
