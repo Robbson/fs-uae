@@ -70,6 +70,7 @@ int debug_dma = 0, debug_heatmap = 0;
 int debug_sprite_mask = 0xff;
 int debug_illegal = 0;
 uae_u64 debug_illegal_mask;
+int debug_logging = 0;
 static int debug_mmu_mode;
 static bool break_if_enforcer;
 
@@ -2485,15 +2486,22 @@ void restore_debug_memwatch_finish (void)
 
 static void memwatch_hit_msg (int mw)
 {
-	int i;
-	console_out_f (_T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X "), mw, mwhit.addr,
+	int i, l;
+	TCHAR buf[300];
+
+	l = _stprintf (buf, _T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X "), mw, mwhit.addr,
 		mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
 		(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
 		mwhit.val, mwhit.pc);
 	for (i = 0; memwatch_access_masks[i].mask; i++) {
 		if (mwhit.access_mask == memwatch_access_masks[i].mask)
-			console_out_f (_T("%s (%03x)\n"), memwatch_access_masks[i].name, mwhit.reg);
+			l += _stprintf (buf + l, _T("%s (%03x)\n"), memwatch_access_masks[i].name, mwhit.reg);
 	}
+	if (l == 0 || buf[l - 1] != '\n')
+		l += _stprintf (buf + l, _T("\n"));
+	console_out (buf);
+	if (debug_logging)
+		write_log (_T("%s"), buf);
 }
 
 static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u32 accessmask, uae_u32 reg)

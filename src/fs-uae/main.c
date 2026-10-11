@@ -940,6 +940,7 @@ extern int g_frame_debug_logging;
 extern int g_fsdb_debug;
 extern int g_random_debug_logging;
 extern int inputdevice_logging;
+extern int debug_logging;
 
 static void configure_logging(const char *logstr)
 {
@@ -968,6 +969,9 @@ static void configure_logging(const char *logstr)
     }
     if (uae_all || strstr(logstr, "uae_frame")) {
         g_frame_debug_logging = 1;
+    }
+    if (uae_all || strstr(logstr, "uae_debug")) {
+        debug_logging = 1;
     }
 }
 
