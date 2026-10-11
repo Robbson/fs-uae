@@ -152,7 +152,8 @@ static TCHAR help[] = {
 	_T("                        x = must be same, z = must be different, s = restart.\n")
 	_T("  W <address> <values[.x] separated by space> Write into Amiga memory.\n")
 	_T("  W <address> 'string' Write into Amiga memory.\n")
-	_T("  w <num> <address> <length> <R/W/I/F/C> [<value>[.x]] (read/write/opcode/freeze/mustchange).\n")
+	_T("  w <num> <address> <length> <R/W/I/F/C/L/N> [<value>[.x]]\n")
+	_T("                        (read/write/opcode/freeze/mustchange/logonly/nobreak).\n")
 	_T("                        Add/remove memory watchpoints.\n")
 	_T("  wd [<0-1>]            Enable illegal access logger. 1 = enable break.\n")
 	_T("  S <file> <addr> <n>   Save a block of Amiga memory.\n")
@@ -2462,6 +2463,8 @@ uae_u8 *restore_debug_memwatch (uae_u8 *src)
 		m->pc = restore_u32 ();
 		m->access_mask = restore_u32();
 		m->reg = restore_u32();
+		m->nobreak = 0;
+		m->reportonly = 0;
 		restore_store_size ();
 	}
 	return src;
@@ -2479,10 +2482,26 @@ void restore_debug_memwatch_finish (void)
 	}
 }
 
+static void memwatch_hit_msg (int mw)
+{
+	int i;
+	console_out_f (_T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X "), mw, mwhit.addr,
+		mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
+		(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
+		mwhit.val, mwhit.pc);
+	for (i = 0; memwatch_access_masks[i].mask; i++) {
+		if (mwhit.access_mask == memwatch_access_masks[i].mask)
+			console_out_f (_T("%s (%03x)\n"), memwatch_access_masks[i].name, mwhit.reg);
+	}
+}
+
 static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u32 accessmask, uae_u32 reg)
 {
 	int i, brk;
 	uae_u32 val = *valp;
+
+	if (debugging > 0)
+		return 1;
 
 	if (illgdebug)
 		illg_debug_do (addr, rwi, size, val);
@@ -2500,6 +2519,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 		int rwi2 = m->rwi;
 		uae_u32 oldval = 0;
 		int isoldval = 0;
+		uae_u32 newval = 0;
 
 		brk = 0;
 		if (m->size == 0)
@@ -2520,12 +2540,16 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 			continue;
 		if (mem_banks[addr >> 16]->check (addr, size)) {
 			uae_u8 *p = mem_banks[addr >> 16]->xlateaddr (addr);
-			if (size == 1)
+			if (size == 1) {
 				oldval = p[0];
-			else if (size == 2)
+				newval = (*valp) & 0xff;
+			} else if (size == 2) {
 				oldval = (p[0] << 8) | p[1];
-			else
+				newval = (*valp) & 0xffff;
+			} else {
 				oldval = (p[0] << 24) | (p[1] << 16) | (p[2] << 8) | (p[3] << 0);
+				newval = *valp;
+			}
 			isoldval = 1;
 		}
 
@@ -2558,7 +2582,7 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 		}
 
 		if (m->mustchange && rwi == 2 && isoldval) {
-			if (oldval == *valp)
+			if (oldval == newval)
 				continue;
 		}
 
@@ -2613,9 +2637,16 @@ static int memwatch_func (uaecptr addr, int rwi, int size, uae_u32 *valp, uae_u3
 		mwhit.reg = reg;
 		if (mwhit.rwi & 2)
 			mwhit.val = val;
-		memwatch_triggered = i + 1;
-		debugging = 1;
-		set_special (SPCFLAG_BRK);
+		if (m->reportonly) {
+			memwatch_hit_msg (i);
+		}
+		if (!m->reportonly) {
+			memwatch_triggered = i + 1;
+			if (!m->nobreak) {
+				debugging = 1;
+				set_special (SPCFLAG_BRK);
+			}
+		}
 		return 1;
 	}
 	return 1;
@@ -3059,6 +3090,10 @@ void memwatch_dump2 (TCHAR *buf, int bufsize, int num)
 				buf = buf_out (buf, &bufsize, _T(" =M"));
 			if (mwn->mustchange)
 				buf = buf_out (buf, &bufsize, _T(" C"));
+			if (mwn->reportonly)
+				buf = buf_out (buf, &bufsize, _T(" L"));
+			if (mwn->nobreak)
+				buf = buf_out (buf, &bufsize, _T(" N"));
 			for (int j = 0; memwatch_access_masks[j].mask; j++) {
 				uae_u32 mask = memwatch_access_masks[j].mask;
 				if ((mwn->access_mask & mask) == mask && (usedmask & mask) == 0) {
@@ -3159,6 +3194,9 @@ static void memwatch (TCHAR **c)
 	mwn->reg = 0xffffffff;
 	mwn->frozen = 0;
 	mwn->modval_written = 0;
+	mwn->mustchange = 0;
+	mwn->nobreak = 0;
+	mwn->reportonly = 0;
 	ignore_ws (c);
 	if (more_params (c)) {
 		mwn->size = readhex (c);
@@ -3186,7 +3224,7 @@ static void memwatch (TCHAR **c)
 				for (;;) {
 					TCHAR ncc = peek_next_char(c);
 					TCHAR nc = _totupper (next_char (c));
-					if (mwn->rwi == 7)
+					if (mwn->rwi == 7 && (nc == 'W' || nc == 'I' || nc == 'R'))
 						mwn->rwi = 0;
 					if (nc == 'F')
 						mwn->frozen = 1;
@@ -3196,6 +3234,12 @@ static void memwatch (TCHAR **c)
 						mwn->rwi |= 4;
 					if (nc == 'R')
 						mwn->rwi |= 1;
+					if (nc == 'C')
+						mwn->mustchange = 1;
+					if (nc == 'L')
+						mwn->reportonly = 1;
+					if (nc == 'N')
+						mwn->nobreak = 1;
 					if (ncc == ' ')
 						break;
 					if (!more_params(c))
@@ -3208,6 +3252,10 @@ static void memwatch (TCHAR **c)
 					mwn->modval_written = 1;
 				} else if (_totupper (**c) == 'C') {
 					mwn->mustchange = 1;
+				} else if (_totupper (**c) == 'L') {
+					mwn->reportonly = 1;
+				} else if (_totupper (**c) == 'N') {
+					mwn->nobreak = 1;
 				} else {
 					mwn->val = readhex (c, &mwn->val_size);
 					mwn->val_enabled = 1;
@@ -5398,14 +5446,7 @@ void debug (void)
 			}
 		}
 	} else {
-		console_out_f (_T("Memwatch %d: break at %08X.%c %c%c%c %08X PC=%08X "), memwatch_triggered - 1, mwhit.addr,
-			mwhit.size == 1 ? 'B' : (mwhit.size == 2 ? 'W' : 'L'),
-			(mwhit.rwi & 1) ? 'R' : ' ', (mwhit.rwi & 2) ? 'W' : ' ', (mwhit.rwi & 4) ? 'I' : ' ',
-			mwhit.val, mwhit.pc);
-		for (i = 0; memwatch_access_masks[i].mask; i++) {
-			if (mwhit.access_mask == memwatch_access_masks[i].mask)
-				console_out_f (_T("%s (%03x)\n"), memwatch_access_masks[i].name, mwhit.reg);
-		}
+		memwatch_hit_msg (memwatch_triggered - 1);
 		memwatch_triggered = 0;
 	}
 	if (skipaddr_doskip > 0) {
