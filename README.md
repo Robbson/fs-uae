@@ -62,6 +62,16 @@ Enhanced format:
 00000025 Memwatch 01: 00000574.W  W  000000AB PC=00001234 CPUDW (000)
 ```
 
+### Programmatic debugger activation
+
+The (console) debugger is normally entered with the <kbd>Mod</kbd>+<kbd>D</kbd>
+/ <kbd>F12</kbd>+<kbd>D</kbd> hot key. A wrapper or launcher can now start it
+without synthesising a key press: enable `debugger_signal = 1` (together with
+`console_debugger = 1`) and send `SIGUSR1` to the FS-UAE process, for example
+`kill -USR1 <pid>`. FS-UAE enters the debugger on the next emulated frame and
+prints `WARNING: Activated debugger`, which can be used to confirm success. This
+is POSIX only (Linux/macOS), not available on Windows.
+
 ## Bug fixes
 
 * **`mustchange` (`C`) never worked.** The size-masked old memory value was

@@ -16,6 +16,7 @@
 #define OPTION_CPU "cpu"
 #define OPTION_CPU_IDLE "cpu_idle"
 #define OPTION_DEBUG_LOG "debug_log"
+#define OPTION_DEBUGGER_SIGNAL "debugger_signal"
 #define OPTION_DETERMINISTIC "deterministic"
 #define OPTION_DONGLE_TYPE "dongle_type"
 #define OPTION_ENHANCED_MEMWATCH_OUTPUTS "enhanced_memwatch_outputs"

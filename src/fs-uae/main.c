@@ -23,6 +23,7 @@
 #include <fs/main.h>
 #include <fs/i18n.h>
 #include <fs/thread.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,6 +47,48 @@
 static int fs_uae_argc;
 static char **fs_uae_argv;
 static int g_warn_about_missing_config_file;
+
+/*
+ * Opt-in external (programmatic) activation of the built-in debugger.
+ *
+ * When the "debugger_signal" option is enabled, sending SIGUSR1 to the FS-UAE
+ * process makes it enter the debugger, exactly as if the debugger hot key
+ * (Mod+D / F12+D) had been pressed. The "console_debugger" option must also be
+ * enabled, just like for the hot key.
+ *
+ * The signal handler may only set a flag; the flag is acted upon in
+ * event_handler(), which runs on the emulation thread, where it is safe to
+ * queue the debugger action.
+ */
+static volatile sig_atomic_t g_fs_uae_debugger_request;
+
+#ifndef WINDOWS
+static void fs_uae_debugger_signal_handler(int signum)
+{
+    (void) signum;
+    g_fs_uae_debugger_request = 1;
+}
+
+static void fs_uae_configure_debugger_signal(void)
+{
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = fs_uae_debugger_signal_handler;
+    sa.sa_flags = SA_RESTART;
+    sigemptyset(&sa.sa_mask);
+    if (sigaction(SIGUSR1, &sa, NULL) == 0) {
+        fs_log("debugger_signal: sending SIGUSR1 will activate the debugger "
+               "(requires console_debugger)\n");
+    }
+    else {
+        fs_log("debugger_signal: unable to install SIGUSR1 handler\n");
+    }
+}
+#else
+static void fs_uae_configure_debugger_signal(void)
+{
+}
+#endif
 
 #define LOG_LINE "---------------------------------------------------------" \
         "-------------------\n"
@@ -329,6 +372,13 @@ static void pause_throttle(void)
 static void event_handler(int line)
 {
     // printf("%d\n", line);
+
+    if (g_fs_uae_debugger_request) {
+        g_fs_uae_debugger_request = 0;
+        fs_log("debugger_signal: activating debugger\n");
+        fs_emu_queue_action(FS_UAE_ACTION_ENTER_DEBUGGER, 1);
+    }
+
     if (line >= 0) {
         input_handler_loop(line);
         return;
@@ -1212,6 +1262,10 @@ int main(int argc, char *argv[])
     fs_set_data_dir(fs_uae_data_dir());
 
     init_i18n();
+
+    if (fs_config_get_boolean(OPTION_DEBUGGER_SIGNAL) == 1) {
+        fs_uae_configure_debugger_signal();
+    }
 
     if (g_fs_uae_disk_file_path) {
         fs_config_set_string(OPTION_FLOPPY_DRIVE_0, g_fs_uae_disk_file_path);

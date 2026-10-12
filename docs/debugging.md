@@ -29,6 +29,24 @@ FIXME:
 
 FIXME:
 
+## Activating the debugger programmatically
+
+By default the (console) debugger is entered with the <kbd>Mod</kbd>+<kbd>D</kbd>
+/ <kbd>F12</kbd>+<kbd>D</kbd> hot key. A launcher or wrapper can trigger it
+without synthesising a key press by enabling the `debugger_signal` option and
+sending `SIGUSR1` to the FS-UAE process:
+
+    fs-uae --console_debugger=1 --debugger_signal=1 <config>
+
+    # from another terminal, or from the launcher that started fs-uae
+    kill -USR1 <fs-uae-pid>
+
+Activation is asynchronous and is picked up on the next emulated frame, so the
+debugger stops the emulator a short moment after the signal is delivered.
+FS-UAE prints `WARNING: Activated debugger` when it enters the debugger, which
+can be used to confirm that activation succeeded. Exactly like the hot key, this
+requires `console_debugger = 1`.
+
 ## Compiling a debug version
 
 If you experience a crash, it is helpful to have a stack trace for when the crash occurs. To compile a version suitable for debugging crashes, you might want to compile a version with debug symbols (`-g`) and with optimizations tuned for debugging (`-Og`):

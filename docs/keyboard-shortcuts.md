@@ -15,7 +15,7 @@ The following keyboard shortcuts are available by default. <kbd>Mod</kbd> means 
 - Use <kbd>Mod</kbd>+<kbd>B</kbd> to toggle extra visible border.
 - Use <kbd>Mod</kbd>+<kbd>S</kbd> or <kbd>Print Scrn</kbd> to save a screenshot of the current Amiga frame to the desktop (or chosen screenshots location).
 - Use <kbd>Mod</kbd>+<kbd>Q</kbd> or <kbd>Mod</kbd>+<kbd>F4</kbd> to quit.
-- Use <kbd>Mod</kbd>+<kbd>D</kbd> to activate (console) debugger.
+- Use <kbd>Mod</kbd>+<kbd>D</kbd> to activate (console) debugger. (With the `debugger_signal` option, a wrapper can also activate the debugger by sending `SIGUSR1` to FS-UAE; see [Debugging](debugging.md).)
 
 Input control:
 
