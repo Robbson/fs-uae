@@ -32,6 +32,7 @@ progdir:
 
 	cp -a ../../licenses FS-UAE/Licenses
 	cp -a ../../README FS-UAE/ReadMe.txt
+	cp -a ../../ai FS-UAE/ai
 
 	echo $(ver) > FS-UAE/Version.txt
 	echo $(ver) > $(fs_uae_dir)/Version.txt

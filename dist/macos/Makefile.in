@@ -30,6 +30,7 @@ plugin-no-archive: bundle
 	mkdir -p ${plugin_dir}
 	echo ${version} > ${plugin_dir}/Version.txt
 	cp ../../README ${plugin_dir}/ReadMe.txt
+	cp -a ../../ai ${plugin_dir}/ai
 
 	mkdir -p ${os_arch_dir}
 	echo ${version} > ${os_arch_dir}/Version.txt

@@ -15,6 +15,7 @@ FS-UAE/
     x86-64/          fs-uae, fs-uae-device-helper, fs-uae.dat, bundled .so files
   Locale/            translations
   Licenses/
+  ai/                AI integration: fs-uae-debugger skill + reference driver
   Plugin.ini
   ReadMe.txt         upstream FS-UAE readme
   ReadMe.md          this fork's readme (features and new options)
