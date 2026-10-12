@@ -3,10 +3,10 @@
 
 AC_PREREQ([2.67])
 
-m4_define([fsbuild_version], [3.3.1])
+m4_define([fsbuild_version], [3.3.2])
 m4_define([fsbuild_version_major], [3])
 m4_define([fsbuild_version_minor], [3])
-m4_define([fsbuild_version_revision], [1])
+m4_define([fsbuild_version_revision], [2])
 m4_define([fsbuild_commit], [])
 
 AC_INIT([FS-UAE], [fsbuild_version],
