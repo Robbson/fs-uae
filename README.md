@@ -14,6 +14,9 @@ branches, this fork stays on the well-tested 3.2.35 emulator core and adds
 narrowly scoped, useful improvements on top of it. The changes so far are
 focused on the built-in debugger's memory watchpoint feature.
 
+If you are interested in an application which makes use of those watchpoint
+improvements, check out the [Debug Shell](https://github.com/Robbson/fs-uae-debug-shell).
+
 ## New features
 
 ### Memory watch logging modes
