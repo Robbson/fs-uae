@@ -77,11 +77,11 @@ static void fs_uae_configure_debugger_signal(void)
     sa.sa_flags = SA_RESTART;
     sigemptyset(&sa.sa_mask);
     if (sigaction(SIGUSR1, &sa, NULL) == 0) {
-        fs_log("debugger_signal: sending SIGUSR1 will activate the debugger "
+        printf("debugger_signal: sending SIGUSR1 will activate the debugger "
                "(requires console_debugger)\n");
     }
     else {
-        fs_log("debugger_signal: unable to install SIGUSR1 handler\n");
+        printf("debugger_signal: unable to install SIGUSR1 handler\n");
     }
 }
 #else
